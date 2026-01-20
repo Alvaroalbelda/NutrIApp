@@ -1,26 +1,47 @@
 # backend/app/models.py
-from sqlalchemy import Column, String, Boolean, Float, Text
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, Numeric
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.sql import func
+
 from .database import Base
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String, nullable=False)
-    email = Column(String, nullable=False, unique=True, index=True)
+    email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    is_verified = Column(Boolean, default=False)
-    verification_token = Column(String, nullable=True)
+
+    is_verified = Column(Boolean, nullable=False, server_default="false")
+    verification_token = Column(UUID(as_uuid=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
 
 class Profile(Base):
     __tablename__ = "profiles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, index=True)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # podría ser ForeignKey si quieres
-    weight = Column(Float, nullable=True)
-    height = Column(Float, nullable=True)
+    # Tu tabla tiene id como PK
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # user_id UNIQUE + FK
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True
+    )
+
+    gender = Column(String, nullable=True)  # (check en DB: male/female/other)
+    weight_kg = Column(Numeric(5, 2), nullable=True)
+    height_cm = Column(Integer, nullable=True)
+
     diet_type = Column(String, nullable=True)
     goal = Column(String, nullable=True)
-    favorites = Column(Text, nullable=True)  # podrías guardar como JSON o texto
+
+    favorites = Column(ARRAY(String), nullable=False, server_default="{}")
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

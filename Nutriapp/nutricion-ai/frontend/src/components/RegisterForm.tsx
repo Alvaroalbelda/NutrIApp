@@ -47,9 +47,15 @@ export default function RegisterForm() {
       return
     }
 
+      // 🔐 Validación de contraseña (AQUÍ)
+    if (form.password.length < 8 || form.password.length > 30) {
+      setError('La contraseña debe tener entre 8 y 30 caracteres')
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,11 +69,29 @@ export default function RegisterForm() {
       console.log('Registro respuesta:', response.status, data)
 
       if (!response.ok) {
-        throw new Error(data.message || 'Error en el registro')
+        // FastAPI suele devolver { detail: "..." }
+        throw new Error(data.detail || data.message || 'Error en el registro')
+      }
+
+      // ✅ Guardar user_id para usarlo en complete-profile
+      if (data.user_id) {
+        localStorage.setItem('user_id', data.user_id)
+      } else {
+        throw new Error('El backend no devolvió user_id')
       }
 
       // Éxito → redirigir al formulario de completar perfil
-      router.push('/complete-profile')
+      // ✅ Guardamos user_id para usarlo en complete-profile
+      localStorage.setItem('user_id', data.user_id)
+
+      // (Opcional, solo para DEV) guardamos el token para poder verificar sin email real
+      if (data.verification_token) {
+        localStorage.setItem('verification_token', data.verification_token)
+      }
+
+      // ✅ En vez de ir a complete-profile, vamos a una pantalla intermedia
+      router.push('/verify-pending')
+
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -111,6 +135,9 @@ export default function RegisterForm() {
           type="password"
           value={form.password}
           onChange={handleChange}
+          minLength={8}
+          maxLength={30}
+          required
           className="w-full border rounded p-2"
         />
       </div>
